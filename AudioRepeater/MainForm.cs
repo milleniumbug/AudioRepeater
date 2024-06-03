@@ -20,6 +20,7 @@ namespace AudioRepeater
         WasapiLoopbackCapture input;
         RawSourceWaveStream stream;
         Stopwatch stopwatch = new Stopwatch();
+        HotKeyWithAction hotkey;
         int totalSeconds = 5;
         int restartSeconds = 10;
         bool recording = true;
@@ -27,10 +28,11 @@ namespace AudioRepeater
         public MainForm()
         {
             InitializeComponent();
-            GlobalHotKey.RegisterHotKey("Alt + Shift + S", () => Play());
+            
             input = new WasapiLoopbackCapture();
             output = new WaveOutEvent();
-            
+            HotkeyTextBox.Text = "Alt + Shift + S";
+            this.hotkey = GlobalHotKey.RegisterHotKey(HotkeyTextBox.Text, () => Play());
             buffer = new BufferedWaveProvider(input.WaveFormat);
             buffer.BufferDuration = TimeSpan.FromSeconds(totalSeconds);
             buffer.ReadFully = true;
@@ -40,7 +42,7 @@ namespace AudioRepeater
 
         private void RestartRecording()
         {
-            RecordingStatusLabel.Text += "\nRecording";
+            RecordingStatusLabel.Text = "Recording";
             output.Stop();
             recording = true;
             input.StartRecording();
@@ -72,13 +74,35 @@ namespace AudioRepeater
                 s.Position = 0;
             }
 
-            stream.Position = 0;
             output.Play();
             stopwatch.Restart();
             await Task.Delay(TimeSpan.FromSeconds(restartSeconds));
             if(!recording && stopwatch.Elapsed >= TimeSpan.FromSeconds(restartSeconds))
             {
                 RestartRecording();
+            }
+        }
+
+        private async void SetHotkeyButton_Click(object sender, EventArgs e)
+        {
+            var hotkey = this.hotkey;
+            if(hotkey != null)
+            {
+                this.hotkey = null;
+                hotkey.Dispose();
+            }
+            try
+            {
+                this.hotkey = GlobalHotKey.RegisterHotKey(HotkeyTextBox.Text, () => Play());
+                StatusLabel.Text = "Succeeded";
+                await Task.Delay(500);
+                StatusLabel.Text = "";
+            }
+            catch (Exception ex)
+            {
+                StatusLabel.Text = "Failed";
+                await Task.Delay(500);
+                StatusLabel.Text = "";
             }
         }
     }
